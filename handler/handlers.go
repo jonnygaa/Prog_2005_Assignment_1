@@ -2,6 +2,8 @@ package handler
 
 import (
 	"bytes"
+	"reflect"
+
 	//"reflect"
 	"encoding/json"
 	"fmt"
@@ -9,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	//"time"
 )
 
@@ -135,9 +138,22 @@ func GeneralInfo(w http.ResponseWriter, r *http.Request) {
 	//_______________________
 	info.Capital = mR["capital"].([]interface{})[0].(string)
 	//_______________________
+	limit := 10 // Set limit
+	if len(r.URL.RawQuery) != 0 {
+		l := r.URL.Query()["limit"] // Extract limit url
+		if len(l) != 0 {            // If limit is found
+			limit, err = strconv.Atoi(l[0])
+			if limit > 100 {
+				limit = 100
+			}
+			if limit < 1 { // Checks for negative numbers or non-numbers
+				limit = 1
+			}
+		}
+	}
+
 	cities := mC["data"].([]interface{})
-	info.Cities = make([]string, len(cities))
-	limit := 10
+	info.Cities = make([]string, limit)
 	for i := 0; i < limit; i++ {
 		cities := cities[i].(string)
 		info.Cities[i] = cities
@@ -221,8 +237,30 @@ func PopulationLevel(w http.ResponseWriter, r *http.Request) {
 	dataPop := mC["data"].(map[string]interface{})
 	count := dataPop["populationCounts"].([]interface{})
 
-	amount := 2015 - 2010 + 1 // Amount of years to be listed
-	not := 0                  // Values that aren't within the range
+	years := [2]int{1900, 2100}
+	if len(r.URL.RawQuery) != 0 {
+		l := r.URL.Query()["limit"] // Extract limit url
+		if len(l) != 0 {            // If limit is found
+			if len(l) == 9 {
+				fmt.Println(reflect.TypeOf(l[0]))
+				//years = l[0]
+				//fmt.Println(years)
+				/*
+					if limit > 100 {
+						limit = 100
+					}
+					if limit < 1 { // Checks for negative numbers or non-numbers
+						limit = 1
+					}*/
+			}
+		}
+	}
+
+	startYear := years[0]
+	endYear := years[1]
+
+	amount := endYear - startYear + 1 // Amount of years to be listed
+	not := 0                          // Values that aren't within the range
 	pop.Values = make([]map[string]interface{}, amount)
 	var pops map[string]interface{}
 	for i, v := range count {
