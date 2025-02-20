@@ -2,9 +2,6 @@ package handler
 
 import (
 	"bytes"
-	"reflect"
-
-	//"reflect"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,8 +9,10 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	//"time"
+	"time"
 )
+
+var StartTime time.Time
 
 /*
  * Convert request to body
@@ -138,13 +137,14 @@ func GeneralInfo(w http.ResponseWriter, r *http.Request) {
 	//_______________________
 	info.Capital = mR["capital"].([]interface{})[0].(string)
 	//_______________________
+	cities := mC["data"].([]interface{})
 	limit := 10 // Set limit
 	if len(r.URL.RawQuery) != 0 {
 		l := r.URL.Query()["limit"] // Extract limit url
 		if len(l) != 0 {            // If limit is found
 			limit, err = strconv.Atoi(l[0])
-			if limit > 100 {
-				limit = 100
+			if limit > len(cities) {
+				limit = len(cities)
 			}
 			if limit < 1 { // Checks for negative numbers or non-numbers
 				limit = 1
@@ -152,7 +152,6 @@ func GeneralInfo(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cities := mC["data"].([]interface{})
 	info.Cities = make([]string, limit)
 	for i := 0; i < limit; i++ {
 		cities := cities[i].(string)
@@ -169,9 +168,8 @@ func GeneralInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-*
-Handler matching on advanced structure with two elements.
-*/
+* Population of cities
+ */
 func PopulationLevel(w http.ResponseWriter, r *http.Request) {
 	// Construct the request URL
 	RESTURL := "http://129.241.150.113:8080/v3.1/alpha/" + r.PathValue("two_letter_country_code")
@@ -237,27 +235,34 @@ func PopulationLevel(w http.ResponseWriter, r *http.Request) {
 	dataPop := mC["data"].(map[string]interface{})
 	count := dataPop["populationCounts"].([]interface{})
 
-	years := [2]int{1900, 2100}
+	startYear := 1900
+	endYear := 2100
 	if len(r.URL.RawQuery) != 0 {
 		l := r.URL.Query()["limit"] // Extract limit url
 		if len(l) != 0 {            // If limit is found
-			if len(l) == 9 {
-				fmt.Println(reflect.TypeOf(l[0]))
-				//years = l[0]
-				//fmt.Println(years)
-				/*
-					if limit > 100 {
-						limit = 100
-					}
-					if limit < 1 { // Checks for negative numbers or non-numbers
-						limit = 1
-					}*/
+			if len(l[0]) == 9 { // Right format
+				s := l[0]
+				startYear, err = strconv.Atoi(s[0:4])
+				endYear, err = strconv.Atoi(s[5:9])
+
+				if startYear < 1960 {
+					startYear = 1960 // Earliest recorded population
+				}
+				if endYear < 1960 {
+					endYear = 1960
+				}
+				if startYear > 2018 {
+					startYear = 2018 // Latest recorded population
+				}
+				if endYear > 2018 {
+					endYear = 2018
+				}
+				if startYear > endYear {
+					endYear = startYear + 1
+				}
 			}
 		}
 	}
-
-	startYear := years[0]
-	endYear := years[1]
 
 	amount := endYear - startYear + 1 // Amount of years to be listed
 	not := 0                          // Values that aren't within the range
@@ -265,7 +270,7 @@ func PopulationLevel(w http.ResponseWriter, r *http.Request) {
 	var pops map[string]interface{}
 	for i, v := range count {
 		popus := v.(map[string]interface{})
-		if popus["year"].(float64) >= 2010 && popus["year"].(float64) <= 2015 {
+		if popus["year"].(float64) >= float64(startYear) && popus["year"].(float64) <= float64(endYear) {
 			// Convert the languages map to map[string]string
 			pops = make(map[string]interface{})
 			for key, value := range popus {
@@ -335,7 +340,9 @@ func Overview(w http.ResponseWriter, r *http.Request) {
 	status.Countriesnowapi = resC.StatusCode
 	status.Testcountriesapi = resR.StatusCode
 	status.Version = "v1"
-	status.Uptime = 1
+	a := time.Now()
+	fmt.Println(a.Sub(StartTime))
+	status.Uptime = int(a.Sub(StartTime)) / 1000 // Show in seconds
 
 	statusJ, _ := json.MarshalIndent(status, "", "    ")
 

@@ -8,9 +8,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 const LINEBREAK = "\n"
+
+var StartTime = time.Now()
 
 /*
 Diagnostic handler to showcases access to request content (headers, body, method, parameters, etc.)
@@ -63,7 +66,7 @@ func diagHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-
+	handler.StartTime = StartTime
 	// Extract PORT variable from the environment variables
 	port := os.Getenv("PORT")
 
@@ -77,7 +80,6 @@ func main() {
 	router := http.NewServeMux()
 
 	// specific simple path value pattern (single element)
-	//http.HandleFunc(handler.DEFAULT_PATH, handler.GeneralInfo)
 	router.HandleFunc(handler.INFO_PATH, handler.GeneralInfo)
 	router.HandleFunc(handler.POPULATION_PATH, handler.PopulationLevel)
 	router.HandleFunc(handler.STATUS_PATH, handler.Overview)
